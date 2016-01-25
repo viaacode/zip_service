@@ -1,3 +1,5 @@
+import datetime
+import logging
 import pika
 from pika.credentials import PlainCredentials
 from json import loads, dumps
@@ -18,16 +20,19 @@ class Consumer:
         self.topic_type = arguments.topic_type
 
     def consume(self):
-        connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host=self.host,
-            port=self.port,
-            credentials=PlainCredentials(self.username, self.password)
-        ))
+        try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(
+                host=self.host,
+                port=self.port,
+                credentials=PlainCredentials(self.username, self.password)
+            ))
 
-        channel = connection.channel()
-        channel.queue_declare(queue=self.queue, durable=True)
-        channel.basic_consume(self.callback, self.queue)
-        channel.start_consuming()
+            channel = connection.channel()
+            channel.queue_declare(queue=self.queue, durable=True)
+            channel.basic_consume(self.callback, self.queue)
+            channel.start_consuming()
+        except Exception as e:
+            logging.error(str(e))
 
     def callback(self, ch, method, properties, body):
         params = loads(body.decode("utf-8"))
@@ -46,10 +51,12 @@ class Consumer:
             "description": details,
             "destination_server": params["destination_server"],
             "destination_path": params["destination_path"],
-            "destination_file": params["destination_file"]
+            "destination_file": params["destination_file"],
+            "timestamp": datetime.datetime.now()
         }
 
-        print(dumps(message))
+        json_message = dumps(message)
+        logging.info(json_message)
 
         send_message(
             self.host,
@@ -60,7 +67,7 @@ class Consumer:
             self.result_routing,
             self.result_queue,
             self.topic_type,
-            dumps(message)
+            json_message
         )
 
         ch.basic_ack(delivery_tag=method.delivery_tag)

@@ -1,4 +1,5 @@
 import pika
+import logging
 from pika.credentials import PlainCredentials
 
 __author__ = 'viaa'
@@ -17,4 +18,4 @@ def send_message(host, port, username, password, exchange, routing_key, queue, t
         channel.queue_bind(queue=queue, exchange=exchange, routing_key=routing_key)
     channel.basic_publish(exchange=exchange, routing_key=routing_key, body=message)
     connection.close()
-    print("Message published to: " + exchange + "/" + routing_key)
+    logging.debug("Message published to: " + exchange + "/" + routing_key)
