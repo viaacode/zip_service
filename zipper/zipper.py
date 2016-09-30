@@ -3,15 +3,26 @@ import os
 from os.path import join, relpath
 
 
-def zip_dir(dir_path, zip_file_path, zip_file):
-    zipf = zipfile.ZipFile(join(zip_file_path, zip_file), 'w', zipfile.ZIP_DEFLATED)
 
-    for root, dirs, files in os.walk(dir_path):
+def zip_dir (**params):
+    root = params['source_path']
+    zipfilename = join (params['destination_path'], params['destination_file'])
+    zipf = zipfile.ZipFile (zipfilename, 'w', zipfile.ZIP_DEFLATED)
+
+    if 'excludes' in params:
+        def should_exclude (directory, filename):
+            if file == params['destination_file']: return True
+            for exclude in params['excludes']:
+                if exclude in directory or exclude in filename: return True
+            return False
+    else:
+        def should_exclude (directory, filename):
+            return filename == params['destination_file']
+
+    for directory, subdirs, files in os.walk (root):
         for file in files:
-            if not file == zip_file:
-                if len(dirs) > 0:
-                    arcname = relpath(join(root, file), root)
-                else:
-                    arcname = relpath(join(root, file), join(root, '..'))
-                zipf.write(join(root, file), arcname=arcname)
-    zipf.close()
+            if should_exclude (directory, file): continue
+            arcname = relpath (join (directory, file), root)
+            zipf.write (join (directory, file), arcname=arcname)
+
+    zipf.close ()

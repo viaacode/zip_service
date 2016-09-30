@@ -40,7 +40,6 @@ class Consumer:
         self.topic_type = arguments.topic_type
 
     def consume(self):
-
         connection = pika.BlockingConnection(pika.ConnectionParameters(
                 host=self.host,
                 port=self.port,
@@ -60,8 +59,9 @@ class Consumer:
 
             if validate_message(params):
                 try:
-                    zipper.zip_dir(params['source_path'], params['destination_path'], params['destination_file'])
+                    zipper.zip_dir (**params)
                 except Exception as e:
+                    logging.error(str(e))
                     status = 'NOK'
                     details = str(e)
 
