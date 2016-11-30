@@ -1,9 +1,11 @@
 import datetime
 import logging
 import pika
+import os
 from pika.credentials import PlainCredentials
 from json import loads, dumps
 from .rabbit_publisher import send_message
+from os.path import join, relpath
 from . import zipper
 
 
@@ -38,6 +40,9 @@ class Consumer:
         self.result_routing = arguments.result_routing
         self.result_queue = arguments.result_queue
         self.topic_type = arguments.topic_type
+        self.file_permission = 0o770
+        self.user = ''
+        self.group = ''
 
     def consume(self):
         connection = pika.BlockingConnection(pika.ConnectionParameters(
@@ -60,7 +65,10 @@ class Consumer:
 
             if validate_message(params):
                 try:
-                    zipper.zip_dir (**params)
+                    root = params['source_path']
+                    zipfilename = join (params['destination_path'], params['destination_file'])
+                    self.supermakedirs(params['destination_path'])
+                    zipper.zip_dir(root, zipfilename, **params)
                 except Exception as e:
                     logging.error(str(e))
                     status = 'NOK'
@@ -96,3 +104,29 @@ class Consumer:
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logging.error(str(e))
+
+    def supermakedirs(self, path):
+        try:
+            if not path or os.path.exists(path):
+                stat_info = os.stat(path)
+                uid = stat_info.st_uid
+                gid = stat_info.st_gid
+                self.user = uid
+                self.group = gid
+                logging.debug('Found: {} - {} - {}'.format(self.user, self.group, path))
+                # Break recursion
+                return []
+            (head, tail) = os.path.split(path)
+            res = self.supermakedirs(head)
+            os.mkdir(path)
+            os.chmod(path, self.file_permission)
+            os.chown(path, self.user, self.group)
+            logging.debug('Created: {} - {} - {}'.format(self.user, self.group, path))
+            res += [path]
+            return res
+        except OSError as e:
+            if e.errno == 17:
+                logging.debug('Directory existed when creating. Ignoring')
+                res += [path]
+                return res
+            raise

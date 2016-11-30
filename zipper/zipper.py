@@ -1,12 +1,10 @@
 import zipfile
 import os
+import logging
 from os.path import join, relpath
 
 
-
-def zip_dir (**params):
-    root = params['source_path']
-    zipfilename = join (params['destination_path'], params['destination_file'])
+def zip_dir(root, zipfilename, **params):
     zipf = zipfile.ZipFile (zipfilename, 'w', zipfile.ZIP_DEFLATED)
 
     if 'excludes' in params:
