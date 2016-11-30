@@ -47,6 +47,7 @@ class Consumer:
         ))
 
         channel = connection.channel()
+        channel.basic_qos(prefetch_count=1)
         channel.queue_declare(queue=self.queue, durable=True)
         channel.basic_consume(self.callback, self.queue)
         channel.start_consuming()
