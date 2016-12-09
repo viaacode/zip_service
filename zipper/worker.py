@@ -33,6 +33,7 @@ class Consumer:
     def __init__(self, arguments):
         self.host = arguments.broker_ip
         self.port = arguments.broker_port
+        self.vhost = arguments.vhost
         self.username = arguments.username
         self.password = arguments.password
         self.queue = arguments.incoming_queue
@@ -48,6 +49,7 @@ class Consumer:
         connection = pika.BlockingConnection(pika.ConnectionParameters(
                 host=self.host,
                 port=self.port,
+                virtual_host=self.vhost,
                 credentials=PlainCredentials(self.username, self.password)
         ))
 

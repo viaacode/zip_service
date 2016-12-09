@@ -16,6 +16,7 @@ You can run the worker by executing the following command:
 
 ```
     zipper [-h] [--broker_ip BROKER_IP]
+                  [--vhost /]
                   [--incoming_queue INCOMING_QUEUE]
                   [--result_exchange RESULT_EXCHANGE]
                   [--result_routing RESULT_ROUTING] [--username USERNAME]
@@ -42,6 +43,7 @@ RESULT_QUEUE=result_queue               #The name of the result queue if this do
 TOPIC_TYPE=direct                       #The name of the topic type for the result queue. Comment out if not needed
 USERNAME=guest                          #The username to access the RabbitMQ broker
 PASSWORD=guest                          #The passwrod to access the RabbitMQ broker
+VHOST=/                                 #The virtual host to use
 ```
 
 # Documentation

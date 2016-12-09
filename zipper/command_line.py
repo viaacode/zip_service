@@ -14,6 +14,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--broker_ip', help='the ip adress/hostname of the rabbit cluster', type=str)
+    parser.add_argument('--vhost', help='the virtual host to use', type=str)
     parser.add_argument('--incoming_queue', help='the incoming queue to bind to for incoming messages', type=str)
     parser.add_argument('--result_exchange', help='the exchange to send the result to', type=str)
     parser.add_argument('--result_routing', help='the routing key to use when posting the result', type=str)
@@ -95,6 +96,9 @@ def parse_config(arguments, conf_path):
         except KeyError:
             arguments.broker_port = 5672
 
+    if config['VHOST']:
+        arguments.vhost = config['VHOST']
+
     if arguments.result_queue is None:
         try:
             arguments.result_queue = config['RESULT_QUEUE']
@@ -126,6 +130,8 @@ def check_arguments(arguments):
 
     if arguments.password is None:
         close("No password specified")
+    if arguments.vhost is None:
+        arguments.vhost = '/'
 
 
 def close(message):
