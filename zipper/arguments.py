@@ -11,5 +11,5 @@ class Arguments(object):
     topic_type = None
     username = None
     password = None
-    vhost = '/'
+    vhost = None
     pass
