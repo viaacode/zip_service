@@ -5,10 +5,11 @@ from pika.credentials import PlainCredentials
 __author__ = 'viaa'
 
 
-def send_message(host, port, username, password, exchange, routing_key, queue, topic_type, message):
+def send_message(host, port, vhost, username, password, exchange, routing_key, queue, topic_type, message):
     connection = pika.BlockingConnection(pika.ConnectionParameters(
         host=host,
         port=port,
+        virtual_host=vhost,
         credentials=PlainCredentials(username, password)
     ))
     channel = connection.channel()

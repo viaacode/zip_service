@@ -92,6 +92,7 @@ class Consumer:
                 send_message(
                         self.host,
                         self.port,
+                        self.vhost,
                         self.username,
                         self.password,
                         self.result_exchange,
