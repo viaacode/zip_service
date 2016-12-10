@@ -1,6 +1,7 @@
 import argparse
 import logging
-from .worker import Consumer
+#from .worker import Consumer
+from .asyncConsumer import AsyncConsumer
 from .arguments import Arguments
 from configparser import ConfigParser
 from os.path import exists
@@ -37,8 +38,10 @@ def main():
 
     try:
         logging.info("Zipper starting...")
-        consumer = Consumer(arguments)
-        consumer.consume()
+        # consumer = Consumer(arguments)
+        # consumer.consume()
+        consumer = AsyncConsumer(arguments)
+        consumer.run()
     except KeyboardInterrupt:
         logging.info("Zipper exited by user.")
 
