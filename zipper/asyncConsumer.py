@@ -70,9 +70,7 @@ class AsyncConsumer(object):
         self.error_queue = 'zipper_errors'
         self.vhost_plain = arguments.vhost
         self.vhost=urllib.parse.quote_plus(arguments.vhost)
-        #self.passwd=urllib.parse.quote_plus(arguments.password)
         self.passwd=arguments.password
-        #print(self.passwd)
         self.queue = arguments.incoming_queue
         self.result_exchange = arguments.result_exchange
         self.result_routing = arguments.result_routing
@@ -95,13 +93,7 @@ class AsyncConsumer(object):
         def __format__(self, *args, **kwargs):
             return super().__format__(*args, **kwargs)
 
-
-
-
-
-
     def connect(self):
-
         LOGGER.info('Connecting to %s', self._url)
         return pika.SelectConnection(pika.URLParameters(self._url),
 
@@ -111,13 +103,11 @@ class AsyncConsumer(object):
                                      )
 
     def on_connection_open(self, unused_connection):
-
         LOGGER.info('Connection opened')
         self.add_on_connection_close_callback()
         self.open_channel()
 
     def add_on_connection_close_callback(self):
-
         LOGGER.info('Adding connection close callback')
         self._connection.add_on_close_callback(self.on_connection_closed)
 
@@ -139,50 +129,22 @@ class AsyncConsumer(object):
                            reply_code, reply_text)
             self._connection.add_timeout(5, self.reconnect)
 
-            # message = {
-            #     "on_closed_error": "True",
-            #     "status": "Failed",
-            #     "description": "onclose send !!!",
-            #
-            #     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            # }
-            #
-            # json_message = dumps(message)
-            # logging.info(json_message)
-            # try:
-            #     channel = self.publish_channel
-            #     if self.error_queue is not None and self.topic_type is not None:
-            #         self.publish_channel.exchange_declare(exchange=self.error_routing, type=self.topic_type)
-            #         self.publish_channel.queue_declare(queue=self.error_queue, durable=True)
-            #         self.publish_channel.queue_bind(queue=self.result_queue, exchange=self.result_exchange,
-            #                                         routing_key=self.result_routing)
-            #     channel.basic_publish(exchange=self.result_exchange, routing_key=self.error_routing, body=json_message)
-            #
-            #     logging.info("Message published to: " + self.result_exchange + "/" + self.result_routing)
-            # except:
-            #     pass
-
 
     def reconnect(self):
         LOGGER.info('reconnect called')
         self._connection.ioloop.stop()
         self.publish_channel = self.publish_connection.channel()
         if not self._closing:
-
             # Create a new connection
             self._connection = self.connect()
-
             # There is now a new connection, needs a new ioloop to run
             self._connection.ioloop.start()
 
     def open_channel(self):
-
         LOGGER.info('Creating a new channel')
         self._connection.channel(on_open_callback=self.on_channel_open)
 
-
     def on_channel_open(self, channel):
-
         LOGGER.info('Channel opened')
         self._channel = channel
         self._channel.basic_qos(prefetch_count=1)
@@ -191,7 +153,6 @@ class AsyncConsumer(object):
         self.setup_exchange(self.EXCHANGE)
 
     def add_on_channel_close_callback(self):
-
         LOGGER.info('Adding channel close callback')
         self._channel.add_on_close_callback(self.on_channel_closed)
 
@@ -262,7 +223,6 @@ class AsyncConsumer(object):
         self._consumer_tag = self._channel.basic_consume(self.on_message,
                                                          self.QUEUE)
 
-
     def add_on_cancel_callback(self):
         LOGGER.info('Adding consumer cancellation callback')
         self._channel.add_on_cancel_callback(self.on_consumer_cancelled)
@@ -288,28 +248,22 @@ class AsyncConsumer(object):
             status = 'OK'
             details = 'Zipfile Created.'
 
-
             if validate_message(params):
                 try:
                     root = params['source_path']
                     zipfilename = join(params['destination_path'], params['destination_file'])
                     self.supermakedirs(params['destination_path'])
                     logging.info('zipping .. be patient')
-
                     @timing
                     def zipping():
 
                         zipper.zip_dir(root, zipfilename, **params)
                         logging.info('zipping finished !')
-
                     zipping()
-
-
                 except Exception as e:
                     logging.error(str(e))
                     status = 'NOK'
                     details = str(e)
-
                 message = {
                     "correlation_id": params["correlation_id"],
                     "status": status,
@@ -319,7 +273,6 @@ class AsyncConsumer(object):
                     "destination_file": params["destination_file"],
                     "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
-
                 json_message = dumps(message)
                 logging.info(json_message)
                 try:
@@ -332,16 +285,11 @@ class AsyncConsumer(object):
                     logging.info("Message published to: " + self.result_exchange + "/" + self.result_routing)
                     self.acknowledge_message(basic_deliver.delivery_tag)
                 except:
-
                     logging.error('reconnecting to queue needed ')
                     self._closing = True
                     self.stop_consuming()
                     self._connection.close()
-                    #self.stop_consuming()
-                    #self.acknowledge_message(basic_deliver.delivery_tag)
                     self._connection.ioloop.stop()
-
-                    #self.run()
                     self.publish_connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host=self.host,
                         port=int(self.port),
@@ -352,9 +300,7 @@ class AsyncConsumer(object):
                     channel=self.publish_channel
                     channel.basic_publish(exchange=self.result_exchange, routing_key=self.result_routing, body=json_message)
                     self.acknowledge_message(basic_deliver.delivery_tag)
-                    #self.start_consuming()
                     pass
-
 
             else:
                 logging.error('Message invalid: {}'.format(params))
@@ -367,23 +313,17 @@ class AsyncConsumer(object):
         except Exception as e:
             logging.error(str(e))
             logging.error('this was on message final error message')
-            # self._closing = True
-            # self.stop_consuming()
-            #
             self.reconnect()
             self.run()
             pass
 
-
     def acknowledge_message(self, delivery_tag):
-
         LOGGER.info('Acknowledging message %s', delivery_tag)
         self._channel.basic_ack(delivery_tag)
 
     def stop_consuming(self):
         """Tell RabbitMQ that you would like to stop consuming by sending the
         Basic.Cancel RPC command.
-
         """
         if self._channel:
             LOGGER.info('Sending a Basic.Cancel RPC command to RabbitMQ')
@@ -464,4 +404,3 @@ class AsyncConsumer(object):
                 res += [path]
                 return res
             raise
-
