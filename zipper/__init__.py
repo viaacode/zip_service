@@ -2,7 +2,7 @@ from .asyncConsumer import AsyncConsumer
 from .arguments import Arguments
 
 
-def start_worker(broker_ip, broker_port, username, password, incoming_queue, result_exchange, result_routing, result_queue, topic_type):
+def start_worker(broker_ip, broker_port, username, password, incoming_queue, result_exchange, result_routing, result_queue, topic_type, vhost):
     worker_arguments = Arguments()
     worker_arguments.broker_ip = broker_ip
     worker_arguments.broker_port = broker_port
@@ -13,6 +13,7 @@ def start_worker(broker_ip, broker_port, username, password, incoming_queue, res
     worker_arguments.result_routing = result_routing
     worker_arguments.result_queue = result_queue
     worker_arguments.topic_type = topic_type
+    worker_arguments.vhost = vhost
 
     # consumer = Consumer(worker_arguments)
     #
