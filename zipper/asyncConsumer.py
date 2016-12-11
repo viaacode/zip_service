@@ -80,15 +80,6 @@ class AsyncConsumer(object):
         self._url = "amqp://%s:%s@%s:%s/%s?heartbeat_interval=0" % (arguments.username,self.passwd,
                                                                     arguments.broker_ip,arguments.broker_port,
                                                                     self.vhost)
-        self.publish_connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host=arguments.broker_ip,
-                port=int(arguments.broker_port),
-                virtual_host=arguments.vhost,
-                heartbeat_interval=int(0),
-                credentials=PlainCredentials(arguments.username, arguments.password)
-          ))
-        self.publish_channel = self.publish_connection.channel()
-        self.publish_channel2 = self.publish_connection.channel(2)
 
         def __format__(self, *args, **kwargs):
             return super().__format__(*args, **kwargs)
@@ -276,31 +267,52 @@ class AsyncConsumer(object):
                 json_message = dumps(message)
                 logging.info(json_message)
                 try:
-                    channel=self.publish_channel
-                    if self.result_queue is not None and self.topic_type is not None:
-                        self.publish_channel.exchange_declare(exchange=self.result_exchange, type=self.topic_type)
-                        self.publish_channel.queue_declare(queue=self.result_queue, durable=True)
-                        self.publish_channel.queue_bind(queue=self.result_queue, exchange=self.result_exchange, routing_key=self.result_routing)
-                    channel.basic_publish(exchange=self.result_exchange, routing_key=self.result_routing, body=json_message)
-                    logging.info("Message published to: " + self.result_exchange + "/" + self.result_routing)
-                    self.acknowledge_message(basic_deliver.delivery_tag)
-                except:
-                    logging.error('reconnecting to queue needed ')
-                    self._closing = True
-                    self.stop_consuming()
-                    self._connection.close()
-                    self._connection.ioloop.stop()
                     self.publish_connection = pika.BlockingConnection(pika.ConnectionParameters(
                         host=self.host,
                         port=int(self.port),
                         virtual_host=self.vhost_plain,
                         heartbeat_interval=int(0),
+                        retry_delay=3,
+                        connection_attempts=60,
                         credentials=PlainCredentials(self.broker_user, self.passwd)
                     ))
+                    self.publish_channel = self.publish_connection.channel()
+                    channel=self.publish_channel
+                    if self.result_queue is not None and self.topic_type is not None:
+                        self.publish_channel.exchange_declare(exchange=self.result_exchange, type=self.topic_type)
+                        self.publish_channel.queue_declare(queue=self.result_queue, durable=True)
+                        self.publish_channel.queue_bind(queue=self.result_queue, exchange=self.result_exchange,
+                                                        routing_key=self.result_routing)
+                    channel.basic_publish(exchange=self.result_exchange, routing_key=self.result_routing,
+                                          body=json_message)
+                    logging.info("Message published to: " + self.result_exchange + "/" + self.result_routing)
+                    self.acknowledge_message(basic_deliver.delivery_tag)
+                    self.publish_connection.close()
+                except:
+                    logging.error('reconnecting to queue needed ')
+
+                    self.publish_connection = pika.BlockingConnection(pika.ConnectionParameters(
+                        host=self.host,
+                        port=int(self.port),
+                        virtual_host=self.vhost_plain,
+                        heartbeat_interval=int(0),
+                        retry_delay=3,
+                        connection_attempts=60,
+                        credentials=PlainCredentials(self.broker_user, self.passwd)
+                    ))
+                    self.publish_channel = self.publish_connection.channel()
                     channel=self.publish_channel
                     channel.basic_publish(exchange=self.result_exchange, routing_key=self.result_routing, body=json_message)
+                    logging.info('sendmessage after reconnect: {}'.format(json_message))
                     self.acknowledge_message(basic_deliver.delivery_tag)
+                    logging.info('stopping consumer, ioloop, and closing connection')
+                    self.publish_connection.close()
+                    self._connection.close()
+                    self.reconnect()
+                    self.run()
+
                     pass
+
 
             else:
                 logging.error('Message invalid: {}'.format(params))
