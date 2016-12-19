@@ -77,6 +77,7 @@ class AsyncConsumer(object):
         self.result_queue = arguments.result_queue
         self.QUEUE = arguments.incoming_queue
         self.topic_type = arguments.topic_type
+        self.file_permission = 0o770
         self._url = "amqp://%s:%s@%s:%s/%s?heartbeat_interval=0" % (arguments.username,self.passwd,
                                                                     arguments.broker_ip,arguments.broker_port,
                                                                     self.vhost)
