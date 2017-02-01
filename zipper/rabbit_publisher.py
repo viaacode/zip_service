@@ -23,18 +23,17 @@ def send_message(host, port, vhost, username, password, exchange, routing_key, q
         channel.queue_declare(queue=queue, durable=True)
         channel.queue_bind(queue=queue, exchange=exchange, routing_key=routing_key)
     try:
-        channel.basic_publish(exchange=exchange, routing_key=routing_key, body=message)
+        channel.basic_publish(exchange=exchange, routing_key=routing_key, body=message,
+                              properties=pika.BasicProperties(delivery_mode=2))
         connection.close(reply_text='closed cause done and published')
 
     except Exception as e:
-        print('connection err:',str(e))
+        print('connection err:', str(e))
         channel = connection.channel(channel_number=3)
         try:
             channel.basic_publish(exchange=exchange, routing_key=routing_key, body=message)
             connection.close(reply_text='closed in exception handling')
         except Exception as e:
             print('reconnected publish failedtoo :s O_°')
-
-
 
     logging.info("Message published to: " + exchange + "/" + routing_key)
