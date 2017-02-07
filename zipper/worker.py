@@ -1,12 +1,16 @@
 import datetime
 import logging
+from threading import Timer
+
 import pika
 import os
+import time
 from pika.credentials import PlainCredentials
 from json import loads, dumps
 from .rabbit_publisher import send_message
 from os.path import join, relpath
 from . import zipper
+from pika import exceptions
 
 
 def validate_message(params):
@@ -21,6 +25,7 @@ def validate_message(params):
 
     message_valid = True
 
+
     for key in mandatory_keys:
         if key not in params:
             message_valid = False
@@ -29,7 +34,19 @@ def validate_message(params):
     return message_valid
 
 
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        logging.info('%s function took %0.3f s' % (f.__name__, (time2-time1)))
+        return ret
+    return wrap
+
+
+
 class Consumer:
+
     def __init__(self, arguments):
         self.host = arguments.broker_ip
         self.port = arguments.broker_port
@@ -45,19 +62,55 @@ class Consumer:
         self.user = ''
         self.group = ''
 
+
+
+
+
     def consume(self):
+
         connection = pika.BlockingConnection(pika.ConnectionParameters(
                 host=self.host,
                 port=self.port,
                 virtual_host=self.vhost,
+                heartbeat_interval=0,
+                retry_delay=2,
+                socket_timeout=6000,
+                connection_attempts=10,
                 credentials=PlainCredentials(self.username, self.password)
         ))
 
-        channel = connection.channel()
+
+
+
+        channel = connection.channel(1)
         channel.basic_qos(prefetch_count=1)
         channel.queue_declare(queue=self.queue, durable=True)
         channel.basic_consume(self.callback, self.queue)
+        # def check():
+        #     time.sleep(10)
+        #     logging.info('start check')
+        #     if connection.is_closed:
+        #
+        #
+        #         logging.info('connection is closed!')
+        #         logging.info('Larry is no more')
+        #         connection.channel(2)
+        #
+        #
+        # Timer(10, check(),)
         channel.start_consuming()
+
+
+
+
+
+
+
+
+
+
+
+
 
     def callback(self, ch, method, properties, body):
         try:
@@ -70,7 +123,19 @@ class Consumer:
                     root = params['source_path']
                     zipfilename = join (params['destination_path'], params['destination_file'])
                     self.supermakedirs(params['destination_path'])
-                    zipper.zip_dir(root, zipfilename, **params)
+                    logging.info('zipping .. be patient')
+
+                    @timing
+                    def zipping():
+
+                        zipper.zip_dir(root, zipfilename, **params)
+                        logging.info('zipping finished !')
+
+
+
+                    zipping()
+
+
                 except Exception as e:
                     logging.error(str(e))
                     status = 'NOK'
@@ -88,8 +153,23 @@ class Consumer:
 
                 json_message = dumps(message)
                 logging.info(json_message)
+                try:
+                    send_message(
+                            self.host,
+                            self.port,
+                            self.vhost,
+                            self.username,
+                            self.password,
+                            self.result_exchange,
+                            self.result_routing,
+                            self.result_queue,
+                            self.topic_type,
+                            json_message
+                    )
+                except pika.exceptions.ConnectionClosed or pika.exceptions.AMQPError as e:
+                    print ('err:',str(e), 'in worker.py')
 
-                send_message(
+                    send_message(
                         self.host,
                         self.port,
                         self.vhost,
@@ -100,10 +180,22 @@ class Consumer:
                         self.result_queue,
                         self.topic_type,
                         json_message
-                )
+                    )
+                    connection = pika.BlockingConnection(pika.ConnectionParameters(
+                        host=self.host,
+                        port=self.port,
+                        virtual_host=self.vhost,
+                        credentials=PlainCredentials(self.username, self.password)
+                    ))
+                    channel = connection.channel()
+                    channel.basic_qos(prefetch_count=1)
+                    channel.queue_declare(queue=self.queue, durable=True)
+                    channel.basic_consume(self.callback, self.queue)
+                    channel.start_consuming()
+
             else:
                 logging.error('Message invalid: {}'.format(params))
-
+                ch.basic_ack(delivery_tag=method.delivery_tag)
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as e:
             logging.error(str(e))
